@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Titanic 生存預測</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .toolbar {
+            margin-bottom: 20px;
+        }
+
+        .toolbar input,
+        .toolbar button {
+            padding: 6px;
+            margin-right: 6px;
+        }
+
+        a {
+            text-decoration: none;
+            color: blue;
+        }
+
+        .pagination {
+            margin-top: 20px;
+        }
+        /* hw作業新增 */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Titanic 生存預測</h1>
+    <h3>Randomforest Classifier</h3>
+
+
+    <a href="{{ url_for('static', filename='download/titanic_test.csv') }}" download>
+        點我下載 titanic_test.csv 
+    </a>
+
+    <div style="margin-bottom: 20px;">
+    <button type="button" id="loadBtn" onclick="startLoadingModel()">載入並查看模型超參數</button>
+    <button type="button" id="deleteBtn" onclick="deleteModel()" style="color: red; margin-left: 10px;">刪除現有模型</button>
+    </div>
+
+    <div id="statusSection" style="margin-top: 15px;">
+        <span id="statusText"></span>
+        <div id="loadingSpinner" class="spinner" style="display: none;"></div>
+    </div>
+
+    <ul id="paramsList" style="margin-top: 15px;"></ul>
+
+    <hr>
+
+    <h3>批次預測</h3>
+    <form action="/predict" method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit">上傳並預測</button>
+    </form>
+
+    <br><hr><br>
+
+    <form action="/feature_importance" method="POST" enctype="multipart/form-data">
+        <button type="submit">Feature importance</button>
+    </form>
+
+    {% if table_html %}
+        <h3>預測結果：</h3>
+        <div border="1">
+            {{ table_html | safe }}
+        </div>
+    {% endif %}
+    <!--以上 作業新增-->
+    
+    <div class="toolbar">
+       
+        <br><br>
+    </div>
+
+    <script>
+         // 作業新增 ///////////
+         let timer = null;
+
+        function startLoadingModel() {
+            document.getElementById('loadBtn').disabled = true;
+            document.getElementById('loadingSpinner').style.display = 'inline-block';
+            document.getElementById('statusText').innerText = '正在嘗試載入模型...';
+            document.getElementById('paramsList').innerHTML = '';
+            checkModel();
+        }
+
+        function checkModel() {
+            fetch('/load_model', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    clearInterval(timer);
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    document.getElementById('statusText').innerText = '模型確認成功（已從硬碟現場讀取超參數）！';
+                    document.getElementById('loadBtn').disabled = false;
+                    
+                    let listHtml = '';
+                    for (const [key, value] of Object.entries(data.params)) {
+                        listHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+                    }
+                    document.getElementById('paramsList').innerHTML = listHtml;
+
+                } else if (data.status === 'training') {
+                    document.getElementById('statusText').innerText = data.message + ' (每 5 秒重試一次)...';
+                    if (!timer) {
+                        timer = setInterval(checkModel, 5000); 
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('statusText').innerText = '連線出錯。';
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('loadBtn').disabled = false;
+                clearInterval(timer);
+            });
+        }
+
+function deleteModel() {
+            const confirmed = confirm("確定要刪除硬碟中的模型檔案（.joblib）嗎？");
+            if (!confirmed) return;
+
+            // 如果正在輪詢，先停掉
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
+
+            fetch('/delete_model', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                // 清空目前的畫面狀態
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('paramsList').innerHTML = '';
+                document.getElementById('loadBtn').disabled = false;
+                
+                // 顯示後端回傳的訊息
+                document.getElementById('statusText').innerText = data.message;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('statusText').innerText = '刪除請求發送失敗。';
+            });
+        }
+        ////////////////////
+
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>Feature Importance</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+</head>
+<body style="font-family: Arial; padding: 30px; text-align: center;">
+
+    <h2>Randomforest Classifier 特徵重要性分析</h2>
+  
+    <hr style="width: 60%; margin-bottom: 30px;">
+
+    <div style="width: 600px; margin: 0 auto;">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <br><br>
+    <button onclick="window.history.back();">回上頁</button>
+
+    <script>
+        // 1. 透過 Jinja2 將後端的 Python 字典直接轉成 JS 的 Object 物件
+        // | tojson | safe 是 Flask 內建的，能把 dict 完美變成 JS 看得懂的 JSON
+        const rawData = {{ data | tojson | safe }};
+
+        // 2. 把資料拆開成 Chart.js 需要的 標籤欄位(Labels) 與 數值(Values)
+        const labels = rawData.labels;
+        const values = rawData.values;
+
+        // 3. 開始用 Chart.js 畫圖
+        const ctx = document.getElementById('myChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar', // 'bar' 是直方圖，如果想換成水平的可以改成 'doughnut' 或 'pie'
+            data: {
+                labels: labels, // X 軸標籤 ['Pclass', 'Sex', 'Age'..... ]
+                datasets: [{
+                    label: '特徵重要性分數',
+                    data: values, // Y 軸數值
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)', // 條形透明藍色
+                    borderColor: 'rgba(54, 162, 235, 1)',       // 邊框深藍色
+                    borderWidth: 1
+                }]
+            },
+            // 註冊數字顯示插件
+            plugins: [ChartDataLabels],
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true, // Y 軸從 0 開始
+                        // 稍微拉高 Y 軸最大值，避免最高的柱子數字被頂部邊框遮到
+                        grace: '20%'
+                    }
+                },
+                // 設定數字顯示的樣式與位置
+                plugins: {
+                    datalabels: {
+                        anchor: 'end',          // 數字錨定在柱子的：頂端 (end)
+                        align: 'top',           // 數字對齊在柱子的：上方 (top)
+                        font: {
+                            weight: 'bold',     // 粗體字
+                            size: 12            // 字體大小
+                        },
+                        color: '#444444',       // 字體顏色
+                        formatter: function(value) {
+                            // 格式化數字：四捨五入保留到小數點後 4 位
+                            return value.toFixed(4); 
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
