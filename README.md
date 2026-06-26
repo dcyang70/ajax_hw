@@ -3,6 +3,12 @@
 ##
 Python 3.12.10
 
+## 安裝uv
+Windows PowerShell
+`
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+`
+
 ## 安裝套件
 - Flask==3.1.3
 - pandas==3.0.3
@@ -12,8 +18,9 @@ Python 3.12.10
 ...
 
 ## 執行方法
-python init_data.py  
-python app.py  
+cd titanic/
+uv run init_data.py  
+uv run app.py  
 打開瀏覽器, 輸入: http://127.0.0.1:5000
 
 ## 說明
